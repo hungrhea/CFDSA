@@ -1,0 +1,93 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bggapp-deploy
+  namespace: bggns
+  labels:
+    app: bgg-app
+spec:
+  replicas: 3
+  selector:
+    # typically a subset of the pod (defined below)
+    matchLabels:
+      app: bgg-app
+      env: test
+  # minReadySeconds: 5
+  # strategy:
+  #   type: RollingUpdate
+  #   rollingUpdate:
+  #     maxSurge: 25%
+  #     maxUnavailable: 25%
+  # template contains the pod (to be replicated) definition
+  template:
+    metadata:
+      name: bggapp-pod
+      namespace: bggns
+      labels:
+        app: bgg-app
+        env: test
+    spec:
+      containers:
+      - name: bggapp-container
+        image: stackupiss/bgg-backend:v2
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 3000
+          periodSeconds: 60
+        envFrom:
+        - configMapRef:
+            name: bgg-cm
+        - secretRef:
+            name: bgg-secret
+        ports:
+        # - name: bggapp-port
+        - containerPort: 3000
+
+
+---
+# Service: well known endpoint for a set of Pods in a deployment
+apiVersion: v1
+kind: Service
+metadata:
+  name: bggapp-svc
+  namespace: bggns
+  labels:
+    app: bgg-app
+spec:
+  # type: ClusterIP
+  # LoadBalancer: 
+  type: LoadBalancer
+  selector:
+    app: bgg-app
+    env: test
+  ports:
+  - name: web
+    port: 8080
+    targetPort: 3000 # containerPort from bggapp-container
+
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bggapp-ing
+  namespace: bggns
+  labels:
+    app: bgg
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: bgg-104.248.99.181.nip.io
+    http:
+      paths:
+      - path: / # anything bgg-104.248.99.181.nip.io/...
+        pathType: Prefix
+        backend:
+          service:
+            name: bggapp-svc
+            port:
+              # name:
+              number: 3000

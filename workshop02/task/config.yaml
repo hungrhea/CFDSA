@@ -1,0 +1,33 @@
+# Namespace
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bggns
+  labels:
+    workshop: workshop02
+
+# ConfigMap: holds configuration data for pods to consume
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bgg-cm
+  namespace: bggns
+  labels:
+    app: bgg
+data:
+  BGG_DB_USER: root
+  BGG_DB_HOST: bggdb-svc.bggns.svc.cluster.local
+
+# Secret
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bgg-secret
+  namespace: bggns
+  labels:
+    app: bgg
+data:
+  BGG_DB_PASSWORD: Y2hhbmdlaXQ=

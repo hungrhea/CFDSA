@@ -1,0 +1,107 @@
+# Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: csapp-ing
+  namespace: codeserver
+  labels:
+    app: cs
+spec:
+  ingressClassName: nginx
+  rules:
+  # get host IP using "k get svc -A" ingress controller EXTERNAL-IP
+  - host: cs-146.190.6.6.nip.io
+    http:
+      paths:
+      - path: / # anything cs-146.190.6.6.nip.io/...
+        pathType: Prefix
+        backend:
+          service:
+            name: csapp-svc
+            port:
+              number: 8443 # tie to Service port
+
+
+# Deployment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: csapp-deploy
+  namespace: codeserver
+  labels:
+    app: cs-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cs-app
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      name: csapp-pod
+      namespace: codeserver
+      labels:
+        app: cs-app
+    spec:
+      volumes:
+      - name: data-vol
+        persistentVolumeClaim:
+          claimName: cs-pvc
+      # - name: config-map
+      #   configMap: 
+      #     name: ingress-cm
+      # - name: secrets 
+      #   secret:
+      #     secretName: ingress-secret
+      containers:
+      - name: csapp-container
+        image: linuxserver/code-server:amd64-4.95.3
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: ingress-cm
+        - secretRef:
+            name: ingress-secret
+        ports:
+        - containerPort: 8443
+        volumeMounts:
+        - name: data-vol
+          mountPath: /config/workspace
+        # - name: config-map
+        #   mountPath: /usr/share/nginx/html
+        #   readOnly: true # configMap
+        # - name: secrets
+        #   mountPath: /var/keys
+        #   readOnly: true # secret
+        resources:
+          requests:
+            memory: 512M
+            cpu: 200m
+          limits:
+            memory: 512M
+            cpu: 200m
+
+
+# Service
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: csapp-svc
+  namespace: codeserver
+  labels:
+    app: cs-app
+spec:
+  type: ClusterIP
+  selector:
+    app: cs-app
+  ports:
+  - name: csport-svc
+    port: 8443
+    targetPort: 8443 # containerPort

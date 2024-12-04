@@ -1,0 +1,58 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bggdb-deploy
+  namespace: bggns
+  labels:
+    app: bgg-db
+spec:
+  replicas: 1
+  selector:
+    # typically a subset of the pod (defined below)
+    matchLabels:
+      app: bgg-db
+      env: test
+  # template contains the pod (to be replicated) definition
+  template:
+    metadata:
+      name: bggdb-pod
+      namespace: bggns
+      labels:
+        app: bgg-db
+        env: test
+    spec:
+
+      volumeMounts:
+      - name: data-vol # should match a defined volume
+        persistentVolumeClaim:
+          claimName: bggdb-pvc
+      
+      containers:
+      - name: bggdb-container
+        image: stackupiss/bgg-database:v1
+        imagePullPolicy: IfNotPresent
+        ports:
+        # - name: bggdb-port
+        - containerPort: 3306
+
+
+---
+# Service: well known endpoint for a set of Pods in a deployment
+apiVersion: v1
+kind: Service
+metadata:
+  name: bggdb-svc
+  namespace: bggns
+  labels:
+    app: bgg-db
+spec:
+  type: ClusterIP
+  selector:
+    app: bgg-db
+    env: test
+  ports:
+  # - name: db
+  - port: 3306
+    targetPort: 3306 # containerPort from bggdb-container
+# service does not have added security layer to pass through selector (labels need not match to access the service)

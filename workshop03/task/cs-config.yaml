@@ -1,0 +1,33 @@
+# Namespace
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: codeserver
+
+
+# ConfigMap
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ingress-secret
+  namespace: codeserver
+data:
+  # password
+  PASSWORD: cGFzc3dvcmQ=
+  # password
+  SUDO_PASSWORD: cGFzc3dvcmQ=
+
+
+# Secret
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ingress-cm
+  namespace: codeserver
+data:
+  TZ: Asia/Singapore
+  DEFAULT_WORKSPACE: /config/workspace
+  PROXY_DOMAIN: cs-146.190.6.6.nip.io # get from "k get svc -A" ingress controller EXTERNAL-IP

@@ -1,0 +1,16 @@
+# PVC
+---
+apiVersion: v1
+kind: PersistentVolumeClaim 
+metadata:
+  name: cs-pvc
+  namespace: codeserver
+  labels:
+    app: cs
+spec:
+  storageClassName: do-block-storage
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
