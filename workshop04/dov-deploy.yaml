@@ -1,0 +1,96 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dov-deploy
+  namespace: myns
+  labels:
+    app: dov
+spec:
+  replicas: 3
+  selector:
+    # typically a subset of the pod (defined below)
+    matchLabels:
+      app: dov
+      env: test
+  # template contains the pod (to be replicated) definition
+  template:
+    metadata:
+      name: dov-pod
+      namespace: myns
+      labels:
+        app: dov
+        env: test
+    spec:
+      containers:
+      - name: dov-container
+        image: chukmunnlee/dov-bear:v5@sha256:483038792aba29562a4d2044e790d7d3e7e6e6f684ce1fcafc3864949c000224
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: dov-cm
+        - secretRef:
+            name: dov-secret
+        # env:
+        # - name: INSTANCE_NAME
+        #   value: "my dov bear"
+        # - name: INSTANCE_HASH
+        #   valueFrom:
+        #     fieldRef:
+        #       fieldPath: status.podIP
+        ports:
+        - containerPort: 3000
+
+
+# defines a new resource
+---
+# Service: well known endpoint for a set of Pods in a deployment
+# purposes of a service: IP table, DNS
+# after creation of service, check if there are any endpoints: label selection is incorrect
+apiVersion: v1
+kind: Service
+metadata:
+  name: dov-svc
+  namespace: myns
+  labels:
+    app: dov
+spec:
+  type: ClusterIP
+  selector:
+    app: dov
+    env: test
+  ports:
+  - name: web
+    port: 8080
+    targetPort: 3000 # containerPort
+
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: dov-hpa
+  namespace: myns
+  labels:
+    app: dov
+spec:
+  minReplicas: 1
+  maxReplicas: 4
+  # scaleTargetRef indicates what to scale
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: dov-deploy
+  metrics:
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 35 # percentage
+  - type: Resource
+    resource:
+      name: cpu # cpu, memory
+      target:
+        type: Utilization
+        averageUtilization: 35 # percentage

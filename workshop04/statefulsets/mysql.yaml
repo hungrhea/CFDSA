@@ -1,0 +1,66 @@
+---
+apiVersin: v1
+kind: Namespace
+metadata:
+  name: dbns
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-hsvc
+  namespace: bdns
+spec:
+  clutserIP: Nones
+  selector:
+    matchLabels:
+      app: db
+      name: db-sts
+
+
+
+
+
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: db-sts
+  namespace: dbns
+  labels:
+    app: db
+spec:
+  replicas: 2
+  serviceName: db-hsvc
+  selector:
+    matchLabels:
+      app: db
+      name: db-sts
+  volumeClaimTemplates:
+  - metadata:
+      name: data-vol
+    spec:
+      storageClassName: do-block-storage
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+  template:
+    metadata:
+      name: db-po
+      labels:
+        app: db
+        name: db-sts
+    spec:
+      containers:
+      - name: db-container
+      image: mysql:8
+      env:
+      - name: MYSQL_ROOT_PASSWORD
+        value: do_not_do_this
+      ports:
+      - containerPort: 3306
+      volumeMounts:
+      - name: data-vol
+        mountPath: /var/lib/mysql

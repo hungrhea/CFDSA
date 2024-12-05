@@ -8,14 +8,14 @@ metadata:
   labels:
     app: cs
 spec:
-  ingressClassName: nginx
+  ingressClassName: nginx # traefik, nginx-ingress
   rules:
   # get host IP using "k get svc -A" ingress controller EXTERNAL-IP
   - host: cs-146.190.6.6.nip.io
     http:
       paths:
       - path: / # anything cs-146.190.6.6.nip.io/...
-        pathType: Prefix
+        pathType: Prefix # Exact, ImplementationSpecific
         backend:
           service:
             name: csapp-svc

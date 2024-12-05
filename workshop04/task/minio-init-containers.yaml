@@ -1,0 +1,144 @@
+# # Ingress
+# ---
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: minio-ing
+#   namespace: minio-ns
+#   labels:
+#     app: minio
+# spec:
+#   ingressClassName: nginx # traefik, nginx-ingress
+#   rules:
+#   # get host IP using "k get svc -A" ingress controller EXTERNAL-IP
+#   - host: minio-146.190.6.6.nip.io
+#     http:
+#       paths:
+#       - path: / # anything minio-146.190.6.6.nip.io/...
+#         pathType: Prefix # Exact, ImplementationSpecific
+#         backend:
+#           service:
+#             name: minio-svc
+#             port:
+#               number: 8443 # tie to Service port
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-svc
+  namespace: minio-ns
+  labels:
+    app: minio
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app: minio
+    name: minio-po
+  ports:
+  - name: minio-server-port
+    port: 9000
+    targetPort: 9000
+  - name: minio-console-port
+    port: 9090
+    targetPort: 9090
+
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio-server-sts
+  namespace: minio-ns
+  labels:
+    app: minio
+spec:
+  serviceName: minio-hsvc
+  replicas: 4
+  selector:
+    # typically a subset of the pod (defined below)
+    matchLabels:
+      app: minio
+      name: minio-po
+  # template contains the pod (to be replicated) definition
+  volumeClaimTemplates:
+  - metadata:
+      name: data-vol
+    spec:
+      storageClassName: do-block-storage
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+  template:
+    metadata:
+      name: minio-po
+      namespace: minio-ns
+      labels:
+        app: minio
+        name: minio-po
+    spec:
+      initContainers:
+      - name: busybox-container
+        image: busybox
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/sh
+        - -c
+        - "chown 1001:1001 /data"
+        volumeMounts:
+        - name: data-vol
+          mountPath: /data
+      containers:
+      - name: minio-container
+        image: bitnami/minio:2024.11.7
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: minio-cm
+        - secretRef:
+            name: minio-secret
+        ports:
+        - containerPort: 9000
+        - containerPort: 9090
+        volumeMounts:
+        - name: data-vol
+          mountPath: /data
+        # securityContext:
+        #   fsGroup: 1001
+#########
+
+
+
+# ---
+# apiVersion: autoscaling/v2
+# kind: HorizontalPodAutoscaler
+# metadata:
+#   name: minio-hpa
+#   namespace: minio-ns
+#   labels:
+#     app: minio
+# spec:
+#   minReplicas: 1
+#   maxReplicas: 4
+#   # scaleTargetRef indicates what to scale
+#   scaleTargetRef:
+#     apiVersion: apps/v1
+#     kind: Deployment
+#     name: minio-deploy
+#   metrics:
+#   - type: Resource
+#     resource:
+#       name: memory
+#       target:
+#         type: Utilization
+#         averageUtilization: 35 # percentage
+#   - type: Resource
+#     resource:
+#       name: cpu # cpu, memory
+#       target:
+#         type: Utilization
+#         averageUtilization: 35 # percentage
